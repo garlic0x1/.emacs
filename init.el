@@ -54,10 +54,9 @@
 	 (lisp-interaction-mode . smartparens-strict-mode)
 	 (ielm-mode . smartparens-strict-mode)
 	 (sly-mode . smartparens-strict-mode)
-	 (scheme-mode . smartparens-strict-mode)
-	 (python-mode . smartparens-mode)
-	 (web-mode . smartparens-mode))
+	 (scheme-mode . smartparens-strict-mode))
   :config
+  (smartparens-global-mode)
   (require 'smartparens-config)
   (advice-add 'newline :after
 	      (lambda ()
@@ -79,12 +78,11 @@
   (evil-define-minor-mode-key
     'normal 'smartparens-mode (kbd "C-,") 'sp-forward-barf-sexp))
 
-(setq evil-want-keybinding nil)
-
 (use-package evil
   :ensure t
   :demand t
   :config
+  (setq evil-want-keybinding nil)
   (evil-mode 1)
   (evil-set-undo-system 'undo-redo))
 
@@ -148,14 +146,15 @@
   (setq doom-modeline-percent-position nil)
   (setq doom-modeline-position-column-line-format '("%l:%c")))
 
+(use-package auto-dark
+  :ensure t
+  :config
+  (setq auto-dark-dark-theme 'modus-vivendi)
+  (setq auto-dark-light-theme 'modus-operandi)
+  (auto-dark-mode))
+
 (use-package vterm
   :ensure t)
-
-;; (use-package transient
-;;   :ensure t)
-
-;; (use-package magit
-;;   :ensure t)
 
 (use-package sly
   :ensure t
