@@ -161,7 +161,12 @@
   :config
   (define-key sly-mode-map (kbd "C-w d") 'sly-edit-definition)
   (define-key sly-mode-map (kbd "C-w b") 'sly-pop-find-definition-stack)
-  (setq inferior-lisp-program "/usr/bin/sbcl"))
+  (setq sly-lisp-implementations
+	'((sbcl ("sbcl") :coding-system utf-8-unix)
+	  (qlot ("qlot" "exec" "sbcl") :coding-system utf-8-unix))))
+
+(use-package cider
+  :ensure t)
 
 (use-package elixir-mode
   :ensure t
@@ -186,6 +191,9 @@
 ;; Misc ;;
 ;;------;;
 
+(setq js-indent-level 2)
+;; (setq debug-on-error t)
+
 ;; get rid of plugin warnings
 (setq warning-minimum-level :emergency)
 
@@ -207,11 +215,6 @@
 ;; fancy scrolling
 (setq scroll-conservatively 101)
 (setq scroll-margin 3)
-
-;; daytime-based theme
-(let ((hour (nth 2 (decode-time))))
-  (unless (and (>= hour 6) (< hour 20))
-    (load-theme 'modus-vivendi)))
 
 ;;----------;;
 ;; Commands ;;
@@ -251,6 +254,7 @@
      ((kbd "C-l") 'windmove-right)
      ((kbd "C-w b") 'evil-jump-backward)
      ((kbd "M-l s") 'sly)
+     ((kbd "M-l c") 'cider-jack-in-clj)
      ((kbd "M-l v") 'vterm)
      ((kbd "M-l m") 'ielm))
     map))
