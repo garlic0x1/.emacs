@@ -50,33 +50,23 @@
 (use-package smartparens
   :ensure t
   :hook ((emacs-lisp-mode . smartparens-strict-mode)
-	 (lisp-mode . smartparens-strict-mode)
-	 (lisp-interaction-mode . smartparens-strict-mode)
-	 (ielm-mode . smartparens-strict-mode)
-	 (sly-mode . smartparens-strict-mode)
-	 (scheme-mode . smartparens-strict-mode))
+         (lisp-mode . smartparens-strict-mode)
+         (lisp-interaction-mode . smartparens-strict-mode)
+         (ielm-mode . smartparens-strict-mode)
+         (sly-mode . smartparens-strict-mode)
+         (scheme-mode . smartparens-strict-mode))
   :config
   (smartparens-global-mode)
   (require 'smartparens-config)
-  (advice-add 'newline :after
-	      (lambda ()
-		(indent-region (point-min) (point-max))))
-  (defun sp-wants-space-p ()
-    (not (looking-back "(" 1)))
-  (defun sp-backspace ()
-    (interactive)
-    (delete-trailing-whitespace)
-    (if (looking-back "^[ \t]+" (line-beginning-position))
-	(progn (delete-horizontal-space)
-	       (delete-backward-char 1)
-	       (when (sp-wants-space-p) (insert " ")))
-      (delete-backward-char 1))
-    (indent-region (point-min) (point-max)))
+
   (define-key smartparens-strict-mode-map (kbd "<backspace>") 'sp-backspace)
-  (evil-define-minor-mode-key
-    'normal 'smartparens-mode (kbd "C-.") 'sp-forward-slurp-sexp)
-  (evil-define-minor-mode-key
-    'normal 'smartparens-mode (kbd "C-,") 'sp-forward-barf-sexp))
+  (define-key smartparens-strict-mode-map (kbd "C-<return>") 'sp-return)
+
+  (evil-define-minor-mode-key 'normal 'smartparens-mode
+    (kbd "C-.") 'sp-forward-slurp-sexp)
+
+  (evil-define-minor-mode-key 'normal 'smartparens-mode
+    (kbd "C-,") 'sp-forward-barf-sexp))
 
 (use-package evil
   :ensure t
@@ -128,7 +118,7 @@
 (use-package consult
   :ensure t
   :bind (("C-x C-b" . consult-buffer)
-	 ("C-x C-g" . consult-ripgrep)))
+         ("C-x C-g" . consult-ripgrep)))
 
 (use-package ivy
   :ensure t)
@@ -162,8 +152,8 @@
   (define-key sly-mode-map (kbd "C-w d") 'sly-edit-definition)
   (define-key sly-mode-map (kbd "C-w b") 'sly-pop-find-definition-stack)
   (setq sly-lisp-implementations
-	'((sbcl ("sbcl") :coding-system utf-8-unix)
-	  (qlot ("qlot" "exec" "sbcl") :coding-system utf-8-unix))))
+        '((sbcl ("sbcl") :coding-system utf-8-unix)
+          (qlot ("qlot" "exec" "sbcl") :coding-system utf-8-unix))))
 
 (use-package cider
   :ensure t)
@@ -172,7 +162,7 @@
   :ensure t
   :config
   (add-hook 'elixir-mode-hook
-	    (lambda () (add-hook 'before-save-hook 'elixir-format nil t))))
+            (lambda () (add-hook 'before-save-hook 'elixir-format nil t))))
 
 (use-package apprentice
   :ensure (:host github :repo "sasanidas/apprentice"))
@@ -191,14 +181,15 @@
 ;; Misc ;;
 ;;------;;
 
-(setq js-indent-level 2)
-;; (setq debug-on-error t)
+(setq debug-on-error t)
 
 ;; get rid of plugin warnings
 (setq warning-minimum-level :emergency)
 
-;; better formatting
+;; auto formatting
 (add-hook 'before-save-hook 'delete-trailing-whitespace)
+(add-hook 'before-save-hook 'indent-buffer)
+(setq js-indent-level 2)
 
 ;; get lambda symbol and stuff
 (global-prettify-symbols-mode)
@@ -220,6 +211,11 @@
 ;; Commands ;;
 ;;----------;;
 
+(defun indent-buffer ()
+  "Indent the whole buffer."
+  (interactive)
+  (save-excursion (indent-region (point-min) (point-max))))
+
 (defun increase-font-size ()
   (interactive)
   (set-face-attribute 'default nil :height (+ (face-attribute 'default :height) 10)))
@@ -228,6 +224,38 @@
   (interactive)
   (set-face-attribute 'default nil :height (- (face-attribute 'default :height) 10)))
 
+;;--------------;;
+;; Lisp Editing ;;
+;;--------------;;
+
+(defun sp-wants-space-p ()
+  (not
+   (or (char-equal ?\( (char-before (point)))
+       (char-equal ?\{ (char-before (point)))
+       (char-equal ?\) (char-after (point)))
+       (char-equal ?\} (char-after (point))))))
+
+(defun sp-back-space ()
+  (when (looking-back "^[ \t]+" (line-beginning-position))
+    (delete-horizontal-space)
+    t))
+
+(defun sp-return ()
+  (interactive)
+  (newline)
+  (indent-buffer)
+  (skip-chars-forward " \t"))
+
+(defun sp-backspace ()
+  (interactive)
+  (message "gothere")
+  (delete-trailing-whitespace)
+  (if (sp-back-space)
+      (progn (delete-backward-char 1)
+	     (when (sp-wants-space-p) (insert " ")))
+    (delete-backward-char 1 ) )
+  (indent-buffer))
+
 ;;-------------;;
 ;; Keybindings ;;
 ;;-------------;;
@@ -235,9 +263,9 @@
 (cl-defmacro define-keys (keymap &body bindings)
   `(progn ,@(mapcar
              (lambda (binding)
-               `(define-key ,keymap
-			    ,(car binding)
-			    ,(cadr binding)))
+	       `(define-key ,keymap
+                            ,(car binding)
+                            ,(cadr binding)))
              bindings)))
 
 (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
@@ -253,6 +281,7 @@
      ((kbd "C-k") 'windmove-up)
      ((kbd "C-l") 'windmove-right)
      ((kbd "C-w b") 'evil-jump-backward)
+     ((kbd "C-c C-q") 'indent-buffer)
      ((kbd "M-l s") 'sly)
      ((kbd "M-l c") 'cider-jack-in-clj)
      ((kbd "M-l v") 'vterm)
@@ -272,7 +301,7 @@
   :global t :keymap custom-emulation-keymap)
 
 (add-to-list 'emulation-mode-map-alists
-	     `((custom-emulation-mode . ,custom-emulation-keymap)))
+             `((custom-emulation-mode . ,custom-emulation-keymap)))
 
 (define-minor-mode custom-mode
   "Custom keybindings."
