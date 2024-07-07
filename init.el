@@ -7,9 +7,9 @@
 (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
 (defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
 (defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
-			      :ref nil :depth 1
-			      :files (:defaults "elpaca-test.el" (:exclude "extensions"))
-			      :build (:not elpaca--activate-package)))
+                              :ref nil :depth 1
+                              :files (:defaults "elpaca-test.el" (:exclude "extensions"))
+                              :build (:not elpaca--activate-package)))
 (let* ((repo  (expand-file-name "elpaca/" elpaca-repos-directory))
        (build (expand-file-name "elpaca/" elpaca-builds-directory))
        (order (cdr elpaca-order))
@@ -63,7 +63,7 @@
   (define-key smartparens-strict-mode-map (kbd "C-<return>") 'sp-return)
 
   (evil-define-minor-mode-key 'normal 'smartparens-mode
-    (kbd "C-.") 'sp-forward-slurp-sexp)
+    (kbd "C-.") 'sp-smart-slurp)
 
   (evil-define-minor-mode-key 'normal 'smartparens-mode
     (kbd "C-,") 'sp-forward-barf-sexp))
@@ -121,7 +121,10 @@
          ("C-x C-g" . consult-ripgrep)))
 
 (use-package ivy
-  :ensure t)
+  :ensure t
+  :config
+  ;; (ivy-mode)
+  )
 
 (use-package swiper
   :ensure t
@@ -155,8 +158,15 @@
         '((sbcl ("sbcl") :coding-system utf-8-unix)
           (qlot ("qlot" "exec" "sbcl") :coding-system utf-8-unix))))
 
-(use-package cider
-  :ensure t)
+;; (use-package slime
+;;   :ensure t
+;;   :config
+;;   (setq slime-lisp-implementations
+;;      '((sbcl ("sbcl") :coding-system utf-8-unix)
+;;           (qlot ("qlot" "exec" "sbcl") :coding-system utf-8-unix))))
+
+;; (use-package coalton-mode
+;;   :ensure (:host github :repo "coalton-lang/coalton-mode"))
 
 (use-package elixir-mode
   :ensure t
@@ -177,19 +187,24 @@
   :defer t
   :init (advice-add 'python-mode :before 'elpy-enable))
 
-;;------;;
-;; Misc ;;
-;;------;;
+;;------------;;
+;; Formatting ;;
+;;------------;;
 
-(setq debug-on-error t)
+(defvar *auto-format* t)
 
-;; get rid of plugin warnings
-(setq warning-minimum-level :emergency)
-
-;; auto formatting
-(add-hook 'before-save-hook 'delete-trailing-whitespace)
-(add-hook 'before-save-hook 'indent-buffer)
+(setq-default indent-tabs-mode nil)
 (setq js-indent-level 2)
+
+(add-hook 'before-save-hook
+          '(lambda ()
+             (when *auto-format*
+               (delete-trailing-whitespace)
+               (indent-buffer))))
+
+;;------------;;
+;; Appearance ;;
+;;------------;;
 
 ;; get lambda symbol and stuff
 (global-prettify-symbols-mode)
@@ -203,6 +218,15 @@
 ;; big letters
 (set-face-attribute 'default nil :height 140)
 
+;;------;;
+;; Misc ;;
+;;------;;
+
+(setq debug-on-error t)
+
+;; get rid of plugin warnings
+(setq warning-minimum-level :emergency)
+
 ;; fancy scrolling
 (setq scroll-conservatively 101)
 (setq scroll-margin 3)
@@ -211,29 +235,63 @@
 ;; Commands ;;
 ;;----------;;
 
+(defun untabify-buffer ()
+  "Untabify the whole buffer."
+  (save-excursion (untabify (point-min) (point-max))))
+
+(defun toggle-auto-format ()
+  (interactive)
+  (message "auto-format set to %S." (setq *auto-format* (not *auto-format*))))
+
+(defun config ()
+  "Open this file."
+  (interactive)
+  (find-file (expand-file-name "init.el" user-emacs-directory)))
+
 (defun indent-buffer ()
-  "Indent the whole buffer."
+  "Indent and untabify the whole buffer."
   (interactive)
   (save-excursion (indent-region (point-min) (point-max))))
 
+(defun format-buffer ()
+  "Remove trailing space, indent, and untabify buffer."
+  (interactive)
+  (indent-buffer)
+  (untabify-buffer)
+  (delete-trailing-whitespace))
+
 (defun increase-font-size ()
   (interactive)
-  (set-face-attribute 'default nil :height (+ (face-attribute 'default :height) 10)))
+  (let ((h (+ (face-attribute 'default :height) 10)))
+    (set-face-attribute 'default nil :height h)))
 
 (defun decrease-font-size ()
   (interactive)
-  (set-face-attribute 'default nil :height (- (face-attribute 'default :height) 10)))
+  (let ((h (- (face-attribute 'default :height) 10)))
+    (set-face-attribute 'default nil :height h)))
 
 ;;--------------;;
 ;; Lisp Editing ;;
 ;;--------------;;
 
-(defun sp-wants-space-p ()
-  (not
-   (or (char-equal ?\( (char-before (point)))
-       (char-equal ?\{ (char-before (point)))
-       (char-equal ?\) (char-after (point)))
-       (char-equal ?\} (char-after (point))))))
+(defun sp-smart-slurp ()
+  (interactive)
+  (sp-forward-slurp-sexp)
+  (skip-syntax-forward "w_")
+  (when (sp-wants-space-after-p)
+    (insert " ")))
+
+(defun sp-wants-space-after-p ()
+  (not (or (looking-at "\\s-")
+           (looking-at ")")
+           (looking-at "]")
+           (looking-at "}"))))
+
+(defun sp-wants-space-before-p ()
+  (not (or (char-equal ?\( (char-before (point)))
+           (char-equal ?\{ (char-before (point)))
+           (char-equal ?\) (char-after (point)))
+           (char-equal ?\} (char-after (point))))))
 
 (defun sp-back-space ()
   (when (looking-back "^[ \t]+" (line-beginning-position))
@@ -243,18 +301,17 @@
 (defun sp-return ()
   (interactive)
   (newline)
-  (indent-buffer)
+  (when *auto-format* (format-buffer))
   (skip-chars-forward " \t"))
 
 (defun sp-backspace ()
   (interactive)
-  (message "gothere")
   (delete-trailing-whitespace)
   (if (sp-back-space)
       (progn (delete-backward-char 1)
-	     (when (sp-wants-space-p) (insert " ")))
-    (delete-backward-char 1 ) )
-  (indent-buffer))
+             (when (sp-wants-space-before-p) (insert " ")))
+    (delete-backward-char 1))
+  (when *auto-format* (indent-buffer)))
 
 ;;-------------;;
 ;; Keybindings ;;
@@ -263,7 +320,7 @@
 (cl-defmacro define-keys (keymap &body bindings)
   `(progn ,@(mapcar
              (lambda (binding)
-	       `(define-key ,keymap
+               `(define-key ,keymap
                             ,(car binding)
                             ,(cadr binding)))
              bindings)))
