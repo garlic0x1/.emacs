@@ -120,12 +120,6 @@
   :bind (("C-x C-b" . consult-buffer)
          ("C-x C-g" . consult-ripgrep)))
 
-(use-package ivy
-  :ensure t
-  :config
-  ;; (ivy-mode)
-  )
-
 (use-package swiper
   :ensure t
   :config (evil-define-key nil evil-normal-state-map (kbd "/") 'swiper))
