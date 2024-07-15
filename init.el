@@ -59,7 +59,7 @@
   (smartparens-global-mode)
   (require 'smartparens-config)
 
-  (define-key smartparens-strict-mode-map (kbd "<backspace>") 'sp-backspace)
+  (define-key smartparens-strict-mode-map (kbd "C-<backspace>") 'sp-backspace)
   (define-key smartparens-strict-mode-map (kbd "C-<return>") 'sp-return)
 
   (evil-define-minor-mode-key 'normal 'smartparens-mode
@@ -68,13 +68,20 @@
   (evil-define-minor-mode-key 'normal 'smartparens-mode
     (kbd "C-,") 'sp-forward-barf-sexp))
 
+(use-package hungry-delete
+  :ensure t
+  :hook (smartparens-strict-mode . hungry-delete-mode)
+  :config (setq hungry-delete-join-reluctantly t))
+
 (use-package evil
   :ensure t
   :demand t
   :config
   (setq evil-want-keybinding nil)
   (evil-mode 1)
-  (evil-set-undo-system 'undo-redo))
+  (evil-set-undo-system 'undo-redo)
+  (define-key evil-window-map "b" 'xref-go-back)
+  (define-key evil-motion-state-map "C-w b" nil))
 
 (use-package evil-collection
   :ensure t
@@ -108,7 +115,7 @@
 (use-package orderless
   :ensure t
   :custom
-  (completion-styles '(orderless basic))
+  (completion-styles '(orderless flex basic))
   (completion-category-overrides '((file (styles basic partial-completion)))))
 
 (use-package marginalia
@@ -152,16 +159,6 @@
         '((sbcl ("sbcl") :coding-system utf-8-unix)
           (qlot ("qlot" "exec" "sbcl") :coding-system utf-8-unix))))
 
-;; (use-package slime
-;;   :ensure t
-;;   :config
-;;   (setq slime-lisp-implementations
-;;      '((sbcl ("sbcl") :coding-system utf-8-unix)
-;;           (qlot ("qlot" "exec" "sbcl") :coding-system utf-8-unix))))
-
-;; (use-package coalton-mode
-;;   :ensure (:host github :repo "coalton-lang/coalton-mode"))
-
 (use-package elixir-mode
   :ensure t
   :config
@@ -180,6 +177,15 @@
   :ensure t
   :defer t
   :init (advice-add 'python-mode :before 'elpy-enable))
+
+(use-package ellama
+  :ensure t
+  :init
+  (require 'llm-ollama)
+  (setopt ellama-provider
+          (make-llm-ollama
+           :chat-model "phi3:3.8b"
+           :embedding-model "nomic-embed-text")))
 
 ;;------------;;
 ;; Formatting ;;
@@ -234,18 +240,21 @@
   (save-excursion (untabify (point-min) (point-max))))
 
 (defun toggle-auto-format ()
+  "Toggles *auto-format*, this effects formatting on save and in smartparens."
   (interactive)
   (message "auto-format set to %S." (setq *auto-format* (not *auto-format*))))
 
 (defun config ()
-  "Open this file."
+  "Open init.el"
   (interactive)
   (find-file (expand-file-name "init.el" user-emacs-directory)))
 
 (defun indent-buffer ()
   "Indent and untabify the whole buffer."
   (interactive)
-  (save-excursion (indent-region (point-min) (point-max))))
+  (unless (eq major-mode 'yaml-mode)
+    (save-excursion
+      (indent-region (point-min) (point-max)))))
 
 (defun format-buffer ()
   "Remove trailing space, indent, and untabify buffer."
@@ -255,11 +264,13 @@
   (delete-trailing-whitespace))
 
 (defun increase-font-size ()
+  "Increase font size by 10 units."
   (interactive)
   (let ((h (+ (face-attribute 'default :height) 10)))
     (set-face-attribute 'default nil :height h)))
 
 (defun decrease-font-size ()
+  "Decrease font size by 10 units."
   (interactive)
   (let ((h (- (face-attribute 'default :height) 10)))
     (set-face-attribute 'default nil :height h)))
@@ -267,13 +278,6 @@
 ;;--------------;;
 ;; Lisp Editing ;;
 ;;--------------;;
-
-(defun sp-smart-slurp ()
-  (interactive)
-  (sp-forward-slurp-sexp)
-  (skip-syntax-forward "w_")
-  (when (sp-wants-space-after-p)
-    (insert " ")))
 
 (defun sp-wants-space-after-p ()
   (not (or (looking-at "\\s-")
@@ -287,25 +291,31 @@
            (char-equal ?\) (char-after (point)))
            (char-equal ?\} (char-after (point))))))
 
-(defun sp-back-space ()
-  (when (looking-back "^[ \t]+" (line-beginning-position))
-    (delete-horizontal-space)
-    t))
+(defun sp-smart-slurp ()
+  "Forward slurp and try to insert space."
+  (interactive)
+  (sp-forward-slurp-sexp)
+  (skip-syntax-forward "w_")
+  (when (sp-wants-space-after-p)
+    (insert " ")))
 
 (defun sp-return ()
+  "Insert newline and format if *auto-format*."
   (interactive)
   (newline)
   (when *auto-format* (format-buffer))
   (skip-chars-forward " \t"))
 
 (defun sp-backspace ()
+  "Delete preceding whitespace and format if *auto-format*."
   (interactive)
   (delete-trailing-whitespace)
-  (if (sp-back-space)
-      (progn (delete-backward-char 1)
+  (if (looking-back "^[ \t]+" (line-beginning-position))
+      (progn (delete-horizontal-space)
+             (delete-backward-char 1)
              (when (sp-wants-space-before-p) (insert " ")))
     (delete-backward-char 1))
-  (when *auto-format* (indent-buffer)))
+  (when *auto-format* (format-buffer)))
 
 ;;-------------;;
 ;; Keybindings ;;
@@ -331,8 +341,9 @@
      ((kbd "C-j") 'windmove-down)
      ((kbd "C-k") 'windmove-up)
      ((kbd "C-l") 'windmove-right)
-     ((kbd "C-w b") 'evil-jump-backward)
+     ((kbd "C-w b") 'xref-go-back)
      ((kbd "C-c C-q") 'indent-buffer)
+     ((kbd "M-l q") 'sly-quit-lisp)
      ((kbd "M-l s") 'sly)
      ((kbd "M-l c") 'cider-jack-in-clj)
      ((kbd "M-l v") 'vterm)
