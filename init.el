@@ -131,6 +131,14 @@
   :ensure t
   :config (evil-define-key nil evil-normal-state-map (kbd "/") 'swiper))
 
+(use-package symbol-overlay
+  :ensure t
+  :hook ((emacs-lisp-mode . symbol-overlay-mode)
+         (lisp-mode . symbol-overlay-mode)
+         (lisp-interaction-mode . symbol-overlay-mode)
+         (ielm-mode . symbol-overlay-mode)
+         (sly-mode . symbol-overlay-mode)))
+
 (use-package doom-modeline
   :ensure t
   :config
@@ -158,6 +166,12 @@
   (setq sly-lisp-implementations
         '((sbcl ("sbcl") :coding-system utf-8-unix)
           (qlot ("qlot" "exec" "sbcl") :coding-system utf-8-unix))))
+
+(use-package zig-mode
+  :ensure t)
+
+(use-package erlang
+  :ensure t)
 
 (use-package elixir-mode
   :ensure t
@@ -187,6 +201,9 @@
            :chat-model "phi3:3.8b"
            :embedding-model "nomic-embed-text")))
 
+(use-package app-launcher
+  :ensure (:host github :repo "SebastienWae/app-launcher"))
+
 ;;------------;;
 ;; Formatting ;;
 ;;------------;;
@@ -196,11 +213,7 @@
 (setq-default indent-tabs-mode nil)
 (setq js-indent-level 2)
 
-(add-hook 'before-save-hook
-          '(lambda ()
-             (when *auto-format*
-               (delete-trailing-whitespace)
-               (indent-buffer))))
+(add-hook 'before-save-hook '(lambda () (when *auto-format* (format-buffer))))
 
 ;;------------;;
 ;; Appearance ;;
@@ -222,7 +235,7 @@
 ;; Misc ;;
 ;;------;;
 
-(setq debug-on-error t)
+;; (setq debug-on-error t)
 
 ;; get rid of plugin warnings
 (setq warning-minimum-level :emergency)
@@ -234,6 +247,67 @@
 ;;----------;;
 ;; Commands ;;
 ;;----------;;
+
+(defun prompt-frame-opts ()
+  `((name . "eprompt")
+    (minibuffer . only)
+    (fullscreen . 0)
+    (undecorated . t)
+    (auto-raise . t)
+    (internal-border-width . 10)
+    (width . 80)
+    (height . 200)))
+
+(defun testreader ()
+  (interactive)
+  (message "%s" (completing-read "test" '(("hi" . 12) ("world" . 4) ) nil t)))
+
+(defun eprompt-alist (message alist)
+  (let ((choice (consult--read alist :prompt message)))
+    (cdr (assoc choice alist))))
+
+(defun ekillprscrn ()
+  (interactive)
+  (message "Kill")
+  (call-process-shell-command "pkill wl-screenrec"))
+
+(defun eprintscreen ()
+  (interactive)
+  (with-selected-frame (make-frame (prompt-frame-opts))
+    (sit-for 0.1)
+    (let ((cmd nil))
+      (run-at-time 0.4 nil
+                   (lambda ()
+                     (frame-focus)
+                     (end-of-buffer)
+                     (insert " ")
+                     (backward-delete-char 1)))
+      (unwind-protect
+          (let* ((action (eprompt-alist
+                          "Print Screen: "
+                          '(("Video" . "wl-screenrec -f ~/Screencasts/rec.mp4")
+                            ("Image" . "grim")
+                            ("Audio/Video" . "wl-screenrec --audio -f ~/Screencasts/rec.mp4"))))
+                 (area (eprompt-alist
+                        "Area: "
+                        '(("All" . "")
+                          ("Selection" . " -g \"$(slurp -d)\""))))
+                 (suffix
+                  (if (equal action "Image")
+                      " - | wl-copy -t image/png &"
+                    " &")))
+            (setq cmd (concat action area suffix)))
+        (progn
+          (delete-frame)
+          (sit-for 0.1)
+          (call-process-shell-command cmd ))))))
+
+(defun elauncher ()
+  "https://gitlab.com/dwt1/configuring-emacs/-/blob/main/07-the-final-touches/scripts/app-launchers.el?ref_type=heads#L28"
+  (interactive)
+  (with-selected-frame (make-frame (prompt-frame-opts))
+    (unwind-protect (app-launcher-run-app t)
+      (delete-frame))))
 
 (defun untabify-buffer ()
   "Untabify the whole buffer."
@@ -259,9 +333,11 @@
 (defun format-buffer ()
   "Remove trailing space, indent, and untabify buffer."
   (interactive)
-  (indent-buffer)
-  (untabify-buffer)
-  (delete-trailing-whitespace))
+  (cond ((member major-mode '(lisp-mode emacs-lisp-mode c-mode))
+         (indent-buffer)
+         (untabify-buffer)
+         (delete-trailing-whitespace))
+        (t nil)))
 
 (defun increase-font-size ()
   "Increase font size by 10 units."
@@ -371,3 +447,16 @@
 
 (custom-emulation-mode)
 (custom-mode)
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(custom-safe-themes
+   '("ba430032923a577f4b6d9affd8c03553e13599aa7a33460e00f594b8693115bf" default)))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
