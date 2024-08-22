@@ -167,6 +167,9 @@
         '((sbcl ("sbcl") :coding-system utf-8-unix)
           (qlot ("qlot" "exec" "sbcl") :coding-system utf-8-unix))))
 
+(use-package haskell-mode
+  :ensure t)
+
 (use-package zig-mode
   :ensure t)
 
@@ -182,6 +185,9 @@
 (use-package apprentice
   :ensure (:host github :repo "sasanidas/apprentice"))
 
+(use-package icicles
+  :ensure (:host github :repo "emacsmirror/icicles"))
+
 (use-package web-mode
   :ensure t
   :hook ((html-mode . web-mode))
@@ -194,12 +200,12 @@
 
 (use-package ellama
   :ensure t
+  :defer t
   :init
-  (require 'llm-ollama)
+  (require 'llm-gemini)
   (setopt ellama-provider
-          (make-llm-ollama
-           :chat-model "phi3:3.8b"
-           :embedding-model "nomic-embed-text")))
+          (make-llm-gemini
+           :key *gemini-key*)))
 
 (use-package app-launcher
   :ensure (:host github :repo "SebastienWae/app-launcher"))
@@ -360,6 +366,7 @@
      ((kbd "C-c C-q") 'indent-buffer)
      ((kbd "M-l q") 'sly-quit-lisp)
      ((kbd "M-l s") 'sly)
+     ((kbd "M-l h") 'run-haskell)
      ((kbd "M-l c") 'cider-jack-in-clj)
      ((kbd "M-l v") 'vterm)
      ((kbd "M-l m") 'ielm))
@@ -386,22 +393,10 @@
 
 (custom-emulation-mode)
 (custom-mode)
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(custom-safe-themes
-   '("ba430032923a577f4b6d9affd8c03553e13599aa7a33460e00f594b8693115bf" default)))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
 
 ;;----------;;
-;; Hyprland ;;
+;; WM Utils ;;
 ;;----------;;
 
-(load (expand-file-name "hypr.el" user-emacs-directory))
+(load (expand-file-name "wmutils.el" user-emacs-directory))
+(load (expand-file-name ".secrets.el" user-emacs-directory))
