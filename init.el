@@ -210,6 +210,15 @@
 (use-package app-launcher
   :ensure (:host github :repo "SebastienWae/app-launcher"))
 
+(use-package nix-mode
+  :ensure t)
+
+(use-package ada-mode
+  :ensure (:host github :repo "tkurtbond/old-ada-mode"))
+
+;; (use-package nixfmt
+;;   :ensure t)
+
 ;;------------;;
 ;; Formatting ;;
 ;;------------;;
@@ -236,6 +245,7 @@
 
 ;; big letters
 (set-face-attribute 'default nil :height 140)
+(set-face-attribute 'default nil :font "SF Mono-14")
 
 ;;------;;
 ;; Misc ;;
@@ -253,6 +263,51 @@
 ;;----------;;
 ;; Commands ;;
 ;;----------;;
+
+(defun xvideos (file target)
+  "Utility for converting webm -> mp4 to post on X dot com."
+  (interactive "fVideo to prepare: \nFTarget file: ")
+  (if (string= "webm" (file-name-extension file))
+      (async-shell-command
+       (concat "ffmpeg "
+               "-i " file " "
+               "-vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" "
+               "-c:v libx264 "
+               "-c:a aac "
+               "-strict experimental "
+               target))
+    (message "File is not a webm.")))
+
+(defun yt-video (url)
+  (interactive "sYoutube URL: ")
+  (async-shell-command
+   (concat "yt-dlp "
+           "-f \"bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best\" "
+           "-o \"~/Videos/%(title)s.%(ext)s\" "
+           url)))
+
+(defun yt-song (url)
+  (interactive "sYoutube URL: ")
+  (async-shell-command
+   (concat "yt-dlp --extract-audio --audio-format flac --audio-quality 0 "
+           url)))
+
+(defun close-saved-buffers ()
+  "Utility to clean up all the buffers I accumulate."
+  (interactive)
+  (cl-flet ((savedp (buf)
+              (when-let ((name (buffer-file-name buf)))
+                (and (file-exists-p name)
+                     (not (buffer-modified-p buf))))))
+    (cl-mapcar #'kill-buffer (cl-remove-if-not #'savedp (buffer-list)))))
+
+(defun buffer-is-saved-file (&optional buffer)
+  "Check if BUFFER is associated with a saved file.
+If BUFFER is nil, use the current buffer."
+  (let ((buf (or buffer (current-buffer))))
+    (and (buffer-file-name buf)         ; Buffer has an associated file
+         (file-exists-p (buffer-file-name buf))  ; File exists on disk
+         (not (buffer-modified-p buf))))) ; Buffer is not modified
 
 (defun untabify-buffer ()
   "Untabify the whole buffer."
@@ -341,6 +396,10 @@
 ;;-------------;;
 ;; Keybindings ;;
 ;;-------------;;
+
+;; make elisp like sly
+(define-key emacs-lisp-mode-map (kbd "C-c C-c") 'eval-last-sexp)
+(define-key emacs-lisp-mode-map (kbd "C-c C-k") 'eval-buffer)
 
 (cl-defmacro define-keys (keymap &body bindings)
   `(progn ,@(mapcar
