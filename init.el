@@ -151,11 +151,14 @@
   (setq doom-modeline-percent-position nil)
   (setq doom-modeline-position-column-line-format '("%l:%c")))
 
+(use-package modus-themes
+  :ensure t)
+
 (use-package auto-dark
   :ensure t
   :config
-  (setq auto-dark-dark-theme 'modus-vivendi)
-  (setq auto-dark-light-theme 'modus-operandi)
+  (setq auto-dark-dark-theme 'modus-vivendi-tinted)
+  (setq auto-dark-light-theme 'modus-operandi-tinted)
   (auto-dark-mode))
 
 (use-package vterm
@@ -399,3 +402,16 @@
 
 (custom-emulation-mode)
 (custom-mode)
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(custom-safe-themes
+   '("712dda0818312c175a60d94ba676b404fc815f8c7e6c080c9b4061596c60a1db" "a75aff58f0d5bbf230e5d1a02169ac2fbf45c930f816f3a21563304d5140d245" default)))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
