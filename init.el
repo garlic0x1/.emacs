@@ -101,12 +101,20 @@
   :ensure t
   :hook (smartparens-enabled . evil-smartparens-mode))
 
-(use-package corfu
-  :ensure t
-  :custom (corfu-auto t)
-  :config
-  (global-corfu-mode)
-  (setq tab-always-indent 'complete))
+(if (display-graphic-p)
+    (use-package corfu
+      :ensure t
+      :custom (corfu-auto t)
+      :config
+      (global-corfu-mode)
+      (setq tab-always-indent 'complete))
+  (use-package corfu-terminal
+    :ensure t
+    :custom (corfu-auto t)
+    :config
+    (corfu-terminal-mode +1)
+    (global-corfu-mode)
+    (setq tab-always-indent 'complete)))
 
 (use-package savehist
   :config (savehist-mode))
@@ -142,27 +150,31 @@
          (ielm-mode . symbol-overlay-mode)
          (sly-mode . symbol-overlay-mode)))
 
-(use-package doom-modeline
-  :ensure t
-  :config
-  (doom-modeline-mode 1)
-  (line-number-mode)
-  (column-number-mode)
-  (setq doom-modeline-percent-position nil)
-  (setq doom-modeline-position-column-line-format '("%l:%c")))
+(when (display-graphic-p)
+  (use-package doom-modeline
+    :ensure t
+    :config
+    (doom-modeline-mode 1)
+    (line-number-mode)
+    (column-number-mode)
+    (setq doom-modeline-percent-position nil)
+    (setq doom-modeline-position-column-line-format '("%l:%c"))))
 
 (use-package modus-themes
   :ensure t)
 
-(use-package auto-dark
-  :ensure t
-  :config
-  (setq auto-dark-dark-theme 'modus-vivendi-tinted)
-  (setq auto-dark-light-theme 'modus-operandi-tinted)
-  (auto-dark-mode))
+(if (display-graphic-p)
+    (use-package auto-dark
+      :ensure t
+      :config
+      (setq auto-dark-dark-theme 'modus-vivendi-tinted
+            auto-dark-light-theme 'modus-operandi-tinted)
+      (auto-dark-mode))
+  (load-theme 'modus-vivendi))
 
-(use-package vterm
-  :ensure t)
+(when (display-graphic-p)
+  (use-package vterm
+    :ensure t))
 
 (use-package sly
   :ensure t
@@ -184,11 +196,35 @@
   :hook ((html-mode . web-mode))
   :config (setq web-mode-markup-indent-offset 2))
 
+(use-package gnuplot
+  :ensure t)
+
+;;-----;;
+;; Org ;;
+;;-----;;
+
+(use-package org
+  :config
+  (push 'org-tempo org-modules)
+  (org-babel-do-load-languages 'org-babel-load-languages
+                               '((lisp . t) (gnuplot . t)))
+  (setq org-babel-lisp-eval-fn 'sly-eval)
+  (setq org-image-actual-width 420)
+  (setq org-startup-with-inline-images t)
+  (setq org-confirm-babel-evaluate nil)
+  (add-hook 'org-babel-after-execute-hook
+            #'(lambda ()
+                (org-display-inline-images)
+                (org-redisplay-inline-images))))
+
+(use-package org-sliced-images
+  :ensure t
+  :config (org-sliced-images-mode))
+
 ;;------------;;
 ;; Formatting ;;
 ;;------------;;
 
-;; Set this to nil on work machine (boomers cant format lmao)
 (defvar *auto-format* nil)
 
 (setq-default indent-tabs-mode nil)
@@ -228,6 +264,9 @@
 
 ;; overflowing long lines
 (setq-default truncate-lines t)
+
+;; too many direds
+(setq dired-kill-when-opening-new-dired-buffer t)
 
 ;;----------------;;
 ;; Andrzej Indent ;;
@@ -345,7 +384,6 @@
 ;; Keybindings ;;
 ;;-------------;;
 
-
 (define-key emacs-lisp-mode-map (kbd "C-c C-c") 'eval-last-sexp)
 (define-key emacs-lisp-mode-map (kbd "C-c C-k") 'eval-buffer)
 
@@ -408,7 +446,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(custom-safe-themes
-   '("712dda0818312c175a60d94ba676b404fc815f8c7e6c080c9b4061596c60a1db" "a75aff58f0d5bbf230e5d1a02169ac2fbf45c930f816f3a21563304d5140d245" default)))
+   '("fbf73690320aa26f8daffdd1210ef234ed1b0c59f3d001f342b9c0bbf49f531c" "2e7dc2838b7941ab9cabaa3b6793286e5134f583c04bde2fba2f4e20f2617cf7" "712dda0818312c175a60d94ba676b404fc815f8c7e6c080c9b4061596c60a1db" "a75aff58f0d5bbf230e5d1a02169ac2fbf45c930f816f3a21563304d5140d245" default)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
