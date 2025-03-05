@@ -89,6 +89,7 @@
   (setq evil-want-keybinding nil)
   (evil-mode 1)
   (evil-set-undo-system 'undo-redo)
+  (define-key evil-window-map "w" 'other-frame)
   (define-key evil-window-map "b" 'xref-go-back)
   (define-key evil-motion-state-map "C-w b" nil))
 
@@ -181,6 +182,7 @@
   :config
   (define-key sly-mode-map (kbd "C-w d") 'sly-edit-definition)
   (define-key sly-mode-map (kbd "C-w b") 'sly-pop-find-definition-stack)
+  (define-key sly-mode-map (kbd "C-s t") 'sly-toggle-trace-fdefinition)
   (setq sly-lisp-implementations
         '((sbcl ("sbcl") :coding-system utf-8-unix)
           (qlot ("qlot" "exec" "sbcl") :coding-system utf-8-unix))))
@@ -198,6 +200,18 @@
 
 (use-package gnuplot
   :ensure t)
+
+(if (display-graphic-p) 
+    (use-package git-gutter-fringe
+      :ensure t
+      :config
+      (git-gutter:start-update-timer)
+      (global-git-gutter-mode 1))
+  (use-package git-gutter
+    :ensure t
+    :config
+    (git-gutter:start-update-timer)
+    (global-git-gutter-mode 1)))
 
 ;;-----;;
 ;; Org ;;
@@ -243,7 +257,7 @@
 (menu-bar-mode -1)
 (tool-bar-mode -1)
 (scroll-bar-mode -1)
-(global-display-line-numbers-mode)
+(global-display-line-numbers-mode 0)
 
 ;; big and pretty font
 (set-face-attribute 'default nil :height 140)
