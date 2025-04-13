@@ -1,13 +1,21 @@
 ;;--------------;;
+;; Early Extras ;;
+;;--------------;;
+
+(let* ((extras-dir (concat user-emacs-directory "early-extras"))
+       (extras-files (ignore-errors (directory-files extras-dir t "^.*\\.el$"))))
+  (dolist (file extras-files) (load file)))
+
+;;--------------;;
 ;; Setup elpaca ;;
 ;;--------------;;
 
-(defvar elpaca-installer-version 0.7)
+(defvar elpaca-installer-version 0.10)
 (defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
 (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
 (defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
 (defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
-                              :ref nil :depth 1
+                              :ref nil :depth 1 :inherit ignore
                               :files (:defaults "elpaca-test.el" (:exclude "extensions"))
                               :build (:not elpaca--activate-package)))
 (let* ((repo  (expand-file-name "elpaca/" elpaca-repos-directory))
@@ -17,20 +25,20 @@
   (add-to-list 'load-path (if (file-exists-p build) build repo))
   (unless (file-exists-p repo)
     (make-directory repo t)
-    (when (< emacs-major-version 28) (require 'subr-x))
+    (when (<= emacs-major-version 28) (require 'subr-x))
     (condition-case-unless-debug err
-        (if-let ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
-                 ((zerop (apply #'call-process `("git" nil ,buffer t "clone"
-                                                 ,@(when-let ((depth (plist-get order :depth)))
-                                                     (list (format "--depth=%d" depth) "--no-single-branch"))
-                                                 ,(plist-get order :repo) ,repo))))
-                 ((zerop (call-process "git" nil buffer t "checkout"
-                                       (or (plist-get order :ref) "--"))))
-                 (emacs (concat invocation-directory invocation-name))
-                 ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
-                                       "--eval" "(byte-recompile-directory \".\" 0 'force)")))
-                 ((require 'elpaca))
-                 ((elpaca-generate-autoloads "elpaca" repo)))
+        (if-let* ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
+                  ((zerop (apply #'call-process `("git" nil ,buffer t "clone"
+                                                  ,@(when-let* ((depth (plist-get order :depth)))
+                                                      (list (format "--depth=%d" depth) "--no-single-branch"))
+                                                  ,(plist-get order :repo) ,repo))))
+                  ((zerop (call-process "git" nil buffer t "checkout"
+                                        (or (plist-get order :ref) "--"))))
+                  (emacs (concat invocation-directory invocation-name))
+                  ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
+                                        "--eval" "(byte-recompile-directory \".\" 0 'force)")))
+                  ((require 'elpaca))
+                  ((elpaca-generate-autoloads "elpaca" repo)))
             (progn (message "%s" (buffer-string)) (kill-buffer buffer))
           (error "%s" (with-current-buffer buffer (buffer-string))))
       ((error) (warn "%s" err) (delete-directory repo 'recursive))))
@@ -40,6 +48,7 @@
     (load "./elpaca-autoloads")))
 (add-hook 'after-init-hook #'elpaca-process-queues)
 (elpaca `(,@elpaca-order))
+
 (elpaca elpaca-use-package
   (elpaca-use-package-mode))
 
@@ -82,11 +91,12 @@
   :hook (smartparens-strict-mode . hungry-delete-mode)
   :config (setq hungry-delete-join-reluctantly t))
 
+(setq evil-want-keybinding nil)
+
 (use-package evil
   :ensure t
   :demand t
   :config
-  (setq evil-want-keybinding nil)
   (evil-mode 1)
   (evil-set-undo-system 'undo-redo)
   (define-key evil-window-map "w" 'other-frame)
@@ -201,7 +211,7 @@
 (use-package gnuplot
   :ensure t)
 
-(if (display-graphic-p) 
+(if (display-graphic-p)
     (use-package git-gutter-fringe
       :ensure t
       :config
@@ -282,6 +292,8 @@
 ;; too many direds
 (setq dired-kill-when-opening-new-dired-buffer t)
 
+(global-auto-revert-mode 1)
+
 ;;----------------;;
 ;; Andrzej Indent ;;
 ;;----------------;;
@@ -334,7 +346,7 @@
 (defun format-buffer ()
   "Remove trailing space, indent, and untabify buffer."
   (interactive)
-  (cond ((member major-mode '(lisp-mode emacs-lisp-mode c-mode))
+  (cond ((member major-mode '(lisp-mode emacs-lisp-mode c-mode sly-mrepl-mode))
          (indent-buffer)
          (untabify-buffer)
          (delete-trailing-whitespace))
@@ -380,6 +392,8 @@
   "Insert newline and format if *auto-format*."
   (interactive)
   (newline)
+  (when (eq major-mode 'sly-mrepl-mode)
+    (sly-mrepl-indent-and-complete-symbol nil))
   (when *auto-format* (format-buffer))
   (skip-chars-forward " \t"))
 
@@ -452,18 +466,17 @@
   "Custom keybindings."
   :global t :keymap custom-keymap)
 
+;;--------;;
+;; Extras ;;
+;;--------;;
+
+(let* ((extras-dir (concat user-emacs-directory "extras"))
+       (extras-files (ignore-errors (directory-files extras-dir t "^.*\\.el$"))))
+  (dolist (file extras-files) (load file)))
+
+;;-------------;;
+;; Auto Config ;;
+;;-------------;;
+
 (custom-emulation-mode)
 (custom-mode)
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(custom-safe-themes
-   '("fbf73690320aa26f8daffdd1210ef234ed1b0c59f3d001f342b9c0bbf49f531c" "2e7dc2838b7941ab9cabaa3b6793286e5134f583c04bde2fba2f4e20f2617cf7" "712dda0818312c175a60d94ba676b404fc815f8c7e6c080c9b4061596c60a1db" "a75aff58f0d5bbf230e5d1a02169ac2fbf45c930f816f3a21563304d5140d245" default)))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
