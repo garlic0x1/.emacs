@@ -68,7 +68,7 @@
          (lisp-mode . smartparens-strict-mode)
          (lisp-interaction-mode . smartparens-strict-mode)
          (ielm-mode . smartparens-strict-mode)
-         (sly-mode . smartparens-strict-mode)
+         (slime-mode . smartparens-strict-mode)
          (scheme-mode . smartparens-strict-mode))
   :config
   (smartparens-global-mode)
@@ -112,20 +112,20 @@
   :ensure t
   :hook (smartparens-enabled . evil-smartparens-mode))
 
-(if (display-graphic-p)
-    (use-package corfu
-      :ensure t
-      :custom (corfu-auto t)
-      :config
-      (global-corfu-mode)
-      (setq tab-always-indent 'complete))
-  (use-package corfu-terminal
-    :ensure t
-    :custom (corfu-auto t)
-    :config
-    (corfu-terminal-mode +1)
-    (global-corfu-mode)
-    (setq tab-always-indent 'complete)))
+;; (if (display-graphic-p)
+;;     (use-package corfu
+;;       :ensure t
+;;       :custom (corfu-auto t)
+;;       :config
+;;       (global-corfu-mode)
+;;       (setq tab-always-indent 'complete))
+;;   (use-package corfu-terminal
+;;     :ensure t
+;;     :custom (corfu-auto t)
+;;     :config
+;;     (corfu-terminal-mode +1)
+;;     (global-corfu-mode)
+;;     (setq tab-always-indent 'complete)))
 
 (use-package savehist
   :config (savehist-mode))
@@ -159,7 +159,7 @@
          (lisp-mode . symbol-overlay-mode)
          (lisp-interaction-mode . symbol-overlay-mode)
          (ielm-mode . symbol-overlay-mode)
-         (sly-mode . symbol-overlay-mode)))
+         (slime-mode . symbol-overlay-mode)))
 
 (when (display-graphic-p)
   (use-package doom-modeline
@@ -187,15 +187,31 @@
   (use-package vterm
     :ensure t))
 
-(use-package sly
+;; (use-package sly
+;;   :ensure t
+;;   :config
+;;   (define-key sly-mode-map (kbd "C-w d") 'sly-edit-definition)
+;;   (define-key sly-mode-map (kbd "C-w b") 'sly-pop-find-definition-stack)
+;;   (define-key sly-mode-map (kbd "C-s t") 'sly-toggle-trace-fdefinition)
+;;   (setq sly-lisp-implementations
+;;         '((sbcl ("sbcl") :coding-system utf-8-unix)
+;;           (qlot ("qlot" "exec" "sbcl") :coding-system utf-8-unix))))
+
+(use-package company
   :ensure t
   :config
-  (define-key sly-mode-map (kbd "C-w d") 'sly-edit-definition)
-  (define-key sly-mode-map (kbd "C-w b") 'sly-pop-find-definition-stack)
-  (define-key sly-mode-map (kbd "C-s t") 'sly-toggle-trace-fdefinition)
-  (setq sly-lisp-implementations
-        '((sbcl ("sbcl") :coding-system utf-8-unix)
-          (qlot ("qlot" "exec" "sbcl") :coding-system utf-8-unix))))
+  (global-company-mode 1))
+
+(use-package slime
+  :ensure t
+  :config
+  (setq inferior-lisp-program "sbcl")
+  (slime-setup '(slime-fancy slime-repl slime-scratch slime-trace-dialog slime-cl-indent slime-company)))
+
+(use-package slime-company
+  :after (slime company)
+  :ensure t
+  :config (setq slime-company-completion 'fuzzy))
 
 (use-package clhs
   :ensure t)
@@ -232,7 +248,7 @@
   (push 'org-tempo org-modules)
   (org-babel-do-load-languages 'org-babel-load-languages
                                '((lisp . t) (gnuplot . t)))
-  (setq org-babel-lisp-eval-fn 'sly-eval)
+  (setq org-babel-lisp-eval-fn 'slime-eval)
   (setq org-image-actual-width 420)
   (setq org-startup-with-inline-images t)
   (setq org-confirm-babel-evaluate nil)
@@ -346,7 +362,7 @@
 (defun format-buffer ()
   "Remove trailing space, indent, and untabify buffer."
   (interactive)
-  (cond ((member major-mode '(lisp-mode emacs-lisp-mode c-mode sly-mrepl-mode))
+  (cond ((member major-mode '(lisp-mode emacs-lisp-mode c-mode slime-mrepl-mode))
          (indent-buffer)
          (untabify-buffer)
          (delete-trailing-whitespace))
@@ -392,8 +408,8 @@
   "Insert newline and format if *auto-format*."
   (interactive)
   (newline)
-  (when (eq major-mode 'sly-mrepl-mode)
-    (sly-mrepl-indent-and-complete-symbol nil))
+  (when (eq major-mode 'slime-mrepl-mode)
+    (slime-mrepl-indent-and-complete-symbol nil))
   (when *auto-format* (format-buffer))
   (skip-chars-forward " \t"))
 
@@ -439,8 +455,8 @@
      ((kbd "C-l") 'windmove-right)
      ((kbd "C-w b") 'xref-go-back)
      ((kbd "C-c C-q") 'indent-buffer)
-     ((kbd "M-l q") 'sly-quit-lisp)
-     ((kbd "M-l s") 'sly)
+     ((kbd "M-l q") 'slime-quit-lisp)
+     ((kbd "M-l s") 'slime)
      ((kbd "M-l v") 'vterm)
      ((kbd "M-l t") 'ansi-term)
      ((kbd "M-l e") 'eshell)
@@ -480,3 +496,16 @@
 
 (custom-emulation-mode)
 (custom-mode)
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(custom-safe-themes
+   '("fea8f3bd01d0f4e63dc0e6eddd699753e1b6abcd7ec4c9e4fe55efbb2d3f04d5" default)))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
