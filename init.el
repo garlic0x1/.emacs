@@ -1,13 +1,21 @@
 ;;--------------;;
+;; Early Extras ;;
+;;--------------;;
+
+(let* ((extras-dir (concat user-emacs-directory "early-extras"))
+       (extras-files (ignore-errors (directory-files extras-dir t "^.*\\.el$"))))
+  (dolist (file extras-files) (load file)))
+
+;;--------------;;
 ;; Setup elpaca ;;
 ;;--------------;;
 
-(defvar elpaca-installer-version 0.7)
+(defvar elpaca-installer-version 0.10)
 (defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
 (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
 (defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
 (defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
-                              :ref nil :depth 1
+                              :ref nil :depth 1 :inherit ignore
                               :files (:defaults "elpaca-test.el" (:exclude "extensions"))
                               :build (:not elpaca--activate-package)))
 (let* ((repo  (expand-file-name "elpaca/" elpaca-repos-directory))
@@ -17,20 +25,20 @@
   (add-to-list 'load-path (if (file-exists-p build) build repo))
   (unless (file-exists-p repo)
     (make-directory repo t)
-    (when (< emacs-major-version 28) (require 'subr-x))
+    (when (<= emacs-major-version 28) (require 'subr-x))
     (condition-case-unless-debug err
-        (if-let ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
-                 ((zerop (apply #'call-process `("git" nil ,buffer t "clone"
-                                                 ,@(when-let ((depth (plist-get order :depth)))
-                                                     (list (format "--depth=%d" depth) "--no-single-branch"))
-                                                 ,(plist-get order :repo) ,repo))))
-                 ((zerop (call-process "git" nil buffer t "checkout"
-                                       (or (plist-get order :ref) "--"))))
-                 (emacs (concat invocation-directory invocation-name))
-                 ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
-                                       "--eval" "(byte-recompile-directory \".\" 0 'force)")))
-                 ((require 'elpaca))
-                 ((elpaca-generate-autoloads "elpaca" repo)))
+        (if-let* ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
+                  ((zerop (apply #'call-process `("git" nil ,buffer t "clone"
+                                                  ,@(when-let* ((depth (plist-get order :depth)))
+                                                      (list (format "--depth=%d" depth) "--no-single-branch"))
+                                                  ,(plist-get order :repo) ,repo))))
+                  ((zerop (call-process "git" nil buffer t "checkout"
+                                        (or (plist-get order :ref) "--"))))
+                  (emacs (concat invocation-directory invocation-name))
+                  ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
+                                        "--eval" "(byte-recompile-directory \".\" 0 'force)")))
+                  ((require 'elpaca))
+                  ((elpaca-generate-autoloads "elpaca" repo)))
             (progn (message "%s" (buffer-string)) (kill-buffer buffer))
           (error "%s" (with-current-buffer buffer (buffer-string))))
       ((error) (warn "%s" err) (delete-directory repo 'recursive))))
@@ -40,12 +48,19 @@
     (load "./elpaca-autoloads")))
 (add-hook 'after-init-hook #'elpaca-process-queues)
 (elpaca `(,@elpaca-order))
+
 (elpaca elpaca-use-package
   (elpaca-use-package-mode))
 
 ;;----------;;
 ;; Packages ;;
 ;;----------;;
+
+(use-package exec-path-from-shell
+  :ensure t
+  :config
+  (when (memq window-system '(mac ns x))
+    (exec-path-from-shell-initialize)))
 
 (use-package smartparens
   :ensure t
@@ -64,22 +79,27 @@
 
   (evil-define-minor-mode-key 'normal 'smartparens-mode
     (kbd "C-.") 'sp-smart-slurp)
-
   (evil-define-minor-mode-key 'normal 'smartparens-mode
-    (kbd "C-,") 'sp-forward-barf-sexp))
+    (kbd "C-,") 'sp-forward-barf-sexp)
+  (evil-define-minor-mode-key 'normal 'smartparens-mode
+    (kbd ">") 'sp-smart-slurp)
+  (evil-define-minor-mode-key 'normal 'smartparens-mode
+    (kbd "<") 'sp-forward-barf-sexp) )
 
 (use-package hungry-delete
   :ensure t
   :hook (smartparens-strict-mode . hungry-delete-mode)
   :config (setq hungry-delete-join-reluctantly t))
 
+(setq evil-want-keybinding nil)
+
 (use-package evil
   :ensure t
   :demand t
   :config
-  (setq evil-want-keybinding nil)
   (evil-mode 1)
   (evil-set-undo-system 'undo-redo)
+  (define-key evil-window-map "w" 'other-frame)
   (define-key evil-window-map "b" 'xref-go-back)
   (define-key evil-motion-state-map "C-w b" nil))
 
@@ -92,18 +112,20 @@
   :ensure t
   :hook (smartparens-enabled . evil-smartparens-mode))
 
-(use-package corfu
-  :ensure t
-  :custom (corfu-auto t)
-  :config
-  (global-corfu-mode)
-  (setq tab-always-indent 'complete))
-
-(use-package eglot
-  :config
-  (add-hook 'python-mode-hook 'eglot-ensure)
-  (add-hook 'c-mode-hook 'eglot-ensure)
-  (add-hook 'javascript-mode-hook 'eglot-ensure))
+(if (display-graphic-p)
+    (use-package corfu
+      :ensure t
+      :custom (corfu-auto t)
+      :config
+      (global-corfu-mode)
+      (setq tab-always-indent 'complete))
+  (use-package corfu-terminal
+    :ensure t
+    :custom (corfu-auto t)
+    :config
+    (corfu-terminal-mode +1)
+    (global-corfu-mode)
+    (setq tab-always-indent 'complete)))
 
 (use-package savehist
   :config (savehist-mode))
@@ -125,7 +147,7 @@
 (use-package consult
   :ensure t
   :bind (("C-x C-b" . consult-buffer)
-         ("C-x C-g" . consult-ripgrep)))
+         ("C-x C-g" . consult-grep)))
 
 (use-package swiper
   :ensure t
@@ -139,51 +161,44 @@
          (ielm-mode . symbol-overlay-mode)
          (sly-mode . symbol-overlay-mode)))
 
-(use-package doom-modeline
-  :ensure t
-  :config
-  (doom-modeline-mode 1)
-  (line-number-mode)
-  (column-number-mode)
-  (setq doom-modeline-percent-position nil)
-  (setq doom-modeline-position-column-line-format '("%l:%c")))
+(when (display-graphic-p)
+  (use-package doom-modeline
+    :ensure t
+    :config
+    (doom-modeline-mode 1)
+    (line-number-mode)
+    (column-number-mode)
+    (setq doom-modeline-percent-position nil)
+    (setq doom-modeline-position-column-line-format '("%l:%c"))))
 
-(use-package auto-dark
-  :ensure t
-  :config
-  (setq auto-dark-dark-theme 'modus-vivendi)
-  (setq auto-dark-light-theme 'modus-operandi)
-  (auto-dark-mode))
-
-(use-package vterm
+(use-package modus-themes
   :ensure t)
+
+(if (display-graphic-p)
+    (use-package auto-dark
+      :ensure t
+      :config
+      (setq auto-dark-dark-theme 'modus-vivendi-tinted
+            auto-dark-light-theme 'modus-operandi-tinted)
+      (auto-dark-mode))
+  (load-theme 'modus-vivendi))
+
+(when (display-graphic-p)
+  (use-package vterm
+    :ensure t))
 
 (use-package sly
   :ensure t
   :config
   (define-key sly-mode-map (kbd "C-w d") 'sly-edit-definition)
   (define-key sly-mode-map (kbd "C-w b") 'sly-pop-find-definition-stack)
+  (define-key sly-mode-map (kbd "C-s t") 'sly-toggle-trace-fdefinition)
   (setq sly-lisp-implementations
         '((sbcl ("sbcl") :coding-system utf-8-unix)
           (qlot ("qlot" "exec" "sbcl") :coding-system utf-8-unix))))
 
-(use-package haskell-mode
+(use-package clhs
   :ensure t)
-
-(use-package zig-mode
-  :ensure t)
-
-(use-package erlang
-  :ensure t)
-
-(use-package elixir-mode
-  :ensure t
-  :config
-  (add-hook 'elixir-mode-hook
-            (lambda () (add-hook 'before-save-hook 'elixir-format nil t))))
-
-(use-package apprentice
-  :ensure (:host github :repo "sasanidas/apprentice"))
 
 (use-package icicles
   :ensure (:host github :repo "emacsmirror/icicles"))
@@ -193,42 +208,53 @@
   :hook ((html-mode . web-mode))
   :config (setq web-mode-markup-indent-offset 2))
 
-(use-package elpy
-  :ensure t
-  :defer t
-  :init (advice-add 'python-mode :before 'elpy-enable))
-
-(use-package ellama
-  :ensure t
-  :defer t
-  :init
-  (require 'llm-gemini)
-  (setopt ellama-provider
-          (make-llm-gemini
-           :key *gemini-key*)))
-
-(use-package app-launcher
-  :ensure (:host github :repo "SebastienWae/app-launcher"))
-
-(use-package nix-mode
+(use-package gnuplot
   :ensure t)
 
-(use-package ada-mode
-  :ensure (:host github :repo "tkurtbond/old-ada-mode"))
+(if (display-graphic-p)
+    (use-package git-gutter-fringe
+      :ensure t
+      :config
+      (git-gutter:start-update-timer)
+      (global-git-gutter-mode 1))
+  (use-package git-gutter
+    :ensure t
+    :config
+    (git-gutter:start-update-timer)
+    (global-git-gutter-mode 1)))
 
-;; (use-package nixfmt
-;;   :ensure t)
+;;-----;;
+;; Org ;;
+;;-----;;
+
+(use-package org
+  :config
+  (push 'org-tempo org-modules)
+  (org-babel-do-load-languages 'org-babel-load-languages
+                               '((lisp . t) (gnuplot . t)))
+  (setq org-babel-lisp-eval-fn 'sly-eval)
+  (setq org-image-actual-width 420)
+  (setq org-startup-with-inline-images t)
+  (setq org-confirm-babel-evaluate nil)
+  (add-hook 'org-babel-after-execute-hook
+            #'(lambda ()
+                (org-display-inline-images)
+                (org-redisplay-inline-images))))
+
+(use-package org-sliced-images
+  :ensure t
+  :config (org-sliced-images-mode))
 
 ;;------------;;
 ;; Formatting ;;
 ;;------------;;
 
-(defvar *auto-format* t)
+(defvar *auto-format* nil)
 
 (setq-default indent-tabs-mode nil)
 (setq js-indent-level 2)
 
-(add-hook 'before-save-hook '(lambda () (when *auto-format* (format-buffer))))
+(add-hook 'before-save-hook #'(lambda () (when *auto-format* (format-buffer))))
 
 ;;------------;;
 ;; Appearance ;;
@@ -241,11 +267,11 @@
 (menu-bar-mode -1)
 (tool-bar-mode -1)
 (scroll-bar-mode -1)
-(global-display-line-numbers-mode)
+(global-display-line-numbers-mode 0)
 
-;; big letters
+;; big and pretty font
 (set-face-attribute 'default nil :height 140)
-(set-face-attribute 'default nil :font "SF Mono-14")
+(set-face-attribute 'default nil :font "SF Mono-16")
 
 ;;------;;
 ;; Misc ;;
@@ -260,37 +286,32 @@
 (setq scroll-conservatively 101)
 (setq scroll-margin 3)
 
+;; overflowing long lines
+(setq-default truncate-lines t)
+
+;; too many direds
+(setq dired-kill-when-opening-new-dired-buffer t)
+
+(global-auto-revert-mode 1)
+
+;;----------------;;
+;; Andrzej Indent ;;
+;;----------------;;
+
+;; (setq lisp-indent-function 'sly-common-lisp-indent-function)
+
+;; (sly-define-common-lisp-style "more-modern"
+;;  "A good general purpose style based on modern but less dogmatic."
+;;  (:inherit "modern")
+;;  (:variables
+;;   (sly-lisp-loop-body-forms-indentation 0) ; <~ was AAF
+;;   (sly-lisp-loop-indent-subclauses t))) ; <~ reenable
+
+;; (setq sly-common-lisp-style-default "more-modern")
+
 ;;----------;;
 ;; Commands ;;
 ;;----------;;
-
-(defun xvideos (file target)
-  "Utility for converting webm -> mp4 to post on X dot com."
-  (interactive "fVideo to prepare: \nFTarget file: ")
-  (if (string= "webm" (file-name-extension file))
-      (async-shell-command
-       (concat "ffmpeg "
-               "-i " file " "
-               "-vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" "
-               "-c:v libx264 "
-               "-c:a aac "
-               "-strict experimental "
-               target))
-    (message "File is not a webm.")))
-
-(defun yt-video (url)
-  (interactive "sYoutube URL: ")
-  (async-shell-command
-   (concat "yt-dlp "
-           "-f \"bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best\" "
-           "-o \"~/Videos/%(title)s.%(ext)s\" "
-           url)))
-
-(defun yt-song (url)
-  (interactive "sYoutube URL: ")
-  (async-shell-command
-   (concat "yt-dlp --extract-audio --audio-format flac --audio-quality 0 "
-           url)))
 
 (defun close-saved-buffers ()
   "Utility to clean up all the buffers I accumulate."
@@ -300,14 +321,6 @@
                 (and (file-exists-p name)
                      (not (buffer-modified-p buf))))))
     (cl-mapcar #'kill-buffer (cl-remove-if-not #'savedp (buffer-list)))))
-
-(defun buffer-is-saved-file (&optional buffer)
-  "Check if BUFFER is associated with a saved file.
-If BUFFER is nil, use the current buffer."
-  (let ((buf (or buffer (current-buffer))))
-    (and (buffer-file-name buf)         ; Buffer has an associated file
-         (file-exists-p (buffer-file-name buf))  ; File exists on disk
-         (not (buffer-modified-p buf))))) ; Buffer is not modified
 
 (defun untabify-buffer ()
   "Untabify the whole buffer."
@@ -333,7 +346,7 @@ If BUFFER is nil, use the current buffer."
 (defun format-buffer ()
   "Remove trailing space, indent, and untabify buffer."
   (interactive)
-  (cond ((member major-mode '(lisp-mode emacs-lisp-mode c-mode))
+  (cond ((member major-mode '(lisp-mode emacs-lisp-mode c-mode sly-mrepl-mode))
          (indent-buffer)
          (untabify-buffer)
          (delete-trailing-whitespace))
@@ -379,6 +392,8 @@ If BUFFER is nil, use the current buffer."
   "Insert newline and format if *auto-format*."
   (interactive)
   (newline)
+  (when (eq major-mode 'sly-mrepl-mode)
+    (sly-mrepl-indent-and-complete-symbol nil))
   (when *auto-format* (format-buffer))
   (skip-chars-forward " \t"))
 
@@ -397,9 +412,10 @@ If BUFFER is nil, use the current buffer."
 ;; Keybindings ;;
 ;;-------------;;
 
-;; make elisp like sly
 (define-key emacs-lisp-mode-map (kbd "C-c C-c") 'eval-last-sexp)
 (define-key emacs-lisp-mode-map (kbd "C-c C-k") 'eval-buffer)
+
+;; (setf ns-command-modifier 'meta)
 
 (cl-defmacro define-keys (keymap &body bindings)
   `(progn ,@(mapcar
@@ -425,9 +441,9 @@ If BUFFER is nil, use the current buffer."
      ((kbd "C-c C-q") 'indent-buffer)
      ((kbd "M-l q") 'sly-quit-lisp)
      ((kbd "M-l s") 'sly)
-     ((kbd "M-l h") 'run-haskell)
-     ((kbd "M-l c") 'cider-jack-in-clj)
      ((kbd "M-l v") 'vterm)
+     ((kbd "M-l t") 'ansi-term)
+     ((kbd "M-l e") 'eshell)
      ((kbd "M-l m") 'ielm))
     map))
 
@@ -450,12 +466,17 @@ If BUFFER is nil, use the current buffer."
   "Custom keybindings."
   :global t :keymap custom-keymap)
 
+;;--------;;
+;; Extras ;;
+;;--------;;
+
+(let* ((extras-dir (concat user-emacs-directory "extras"))
+       (extras-files (ignore-errors (directory-files extras-dir t "^.*\\.el$"))))
+  (dolist (file extras-files) (load file)))
+
+;;-------------;;
+;; Auto Config ;;
+;;-------------;;
+
 (custom-emulation-mode)
 (custom-mode)
-
-;;----------;;
-;; WM Utils ;;
-;;----------;;
-
-(load (expand-file-name "wmutils.el" user-emacs-directory))
-(load (expand-file-name ".secrets.el" user-emacs-directory))
