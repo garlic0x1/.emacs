@@ -206,7 +206,15 @@
   :ensure t
   :config
   (setq inferior-lisp-program "sbcl")
-  (slime-setup '(slime-fancy slime-repl slime-scratch slime-trace-dialog slime-cl-indent slime-company)))
+  (setq slime-contribs
+        '(slime-fancy
+          slime-repl
+          slime-scratch
+          slime-trace-dialog
+          slime-cl-indent
+          slime-company))
+  (when (require 'slime-coalton nil t)
+    (slime-coalton-init)))
 
 (use-package slime-company
   :after (slime company)
