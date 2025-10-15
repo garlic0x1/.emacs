@@ -10,7 +10,7 @@
 ;; Setup elpaca ;;
 ;;--------------;;
 
-(defvar elpaca-installer-version 0.10)
+(defvar elpaca-installer-version 0.11)
 (defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
 (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
 (defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
@@ -45,7 +45,7 @@
   (unless (require 'elpaca-autoloads nil t)
     (require 'elpaca)
     (elpaca-generate-autoloads "elpaca" repo)
-    (load "./elpaca-autoloads")))
+    (let ((load-source-file-function nil)) (load "./elpaca-autoloads"))))
 (add-hook 'after-init-hook #'elpaca-process-queues)
 (elpaca `(,@elpaca-order))
 
@@ -174,6 +174,9 @@
 (use-package modus-themes
   :ensure t)
 
+;; (use-package ef-themes
+;;   :ensure t)
+
 (if (display-graphic-p)
     (use-package auto-dark
       :ensure t
@@ -230,8 +233,9 @@
 (use-package org
   :config
   (push 'org-tempo org-modules)
-  (org-babel-do-load-languages 'org-babel-load-languages
-                               '((lisp . t) (gnuplot . t)))
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((lisp . t) (sqlite . t) (gnuplot . t) (python . t)))
   (setq org-babel-lisp-eval-fn 'sly-eval)
   (setq org-image-actual-width 420)
   (setq org-startup-with-inline-images t)
@@ -271,7 +275,7 @@
 
 ;; big and pretty font
 (set-face-attribute 'default nil :height 140)
-(set-face-attribute 'default nil :font "SF Mono-16")
+(ignore-errors (set-face-attribute 'default nil :font "SF Mono-16"))
 
 ;;------;;
 ;; Misc ;;
@@ -480,3 +484,7 @@
 
 (custom-emulation-mode)
 (custom-mode)
+
+;;-----------------
+
+
