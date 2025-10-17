@@ -196,6 +196,8 @@
   (define-key sly-mode-map (kbd "C-w d") 'sly-edit-definition)
   (define-key sly-mode-map (kbd "C-w b") 'sly-pop-find-definition-stack)
   (define-key sly-mode-map (kbd "C-s t") 'sly-toggle-trace-fdefinition)
+  (put 'do 'common-lisp-indent-function 0)
+  (put 'do 'sly-common-lisp-indent-function 0)
   (setq sly-lisp-implementations
         '((sbcl ("sbcl") :coding-system utf-8-unix)
           (qlot ("qlot" "exec" "sbcl") :coding-system utf-8-unix))))
